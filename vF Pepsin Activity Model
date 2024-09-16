@@ -1,0 +1,75 @@
+library(shiny)
+
+ui <- fluidPage(
+  titlePanel("% of optimum activity of your pepsin at certain pH and temperature during semi-dynamic digestion"),
+  
+  sidebarLayout(
+    sidebarPanel(
+      numericInput(
+        inputId = "t",
+        label = "Temperature value",
+        value = 1,
+        min = NA,
+        max = NA,
+        step = NA,
+        width = NULL
+      ),
+      numericInput(
+        inputId = "ph",
+        label = "ph value ",
+        value = 1,
+        min = NA,
+        max = NA,
+        step = NA,
+        width = NULL
+      ),
+      actionButton("add_data", "Add Data"),
+    ),
+    
+    mainPanel(
+      plotOutput("graph"),
+      tableOutput("table"),
+      verbatimTextOutput("average_result")
+    )
+  )
+)
+
+server <- function(input, output) {
+  
+  results <- reactiveValues(data = data.frame(Temperature = numeric(),
+                                              pH = numeric(),
+                                              Result = numeric()))
+  
+  observeEvent(input$add_data, {
+    eqa <- (128.23+(input$ph * -74.77) +
+              (-41.65*input$t) + 
+              (31.54 * input$ph * input$t) + 
+              (3.57*(input$ph^2)) +
+              (1.682 *(input$t^2)) +
+              (-9.22 *(input$ph^2 * (input$t)))+(-0.69 *(input$ph * (input$t^2)))+(6.385*(input$ph^3))+
+              (-0.024*(input$t^3))+(0.1655*(input$ph^2)*(input$t^2))+(0.88*(input$ph^3)*(input$t))+(0.002*(input$ph)*(input$t^3))
+            (-0.929*(input$ph^4))+(0.000134*input$t^4))+(-0.0158*(input$ph^3)*(input$t^3))
+    eqa <- ifelse(eqa < 0, 0, eqa)
+    results$data <- rbind(results$data, data.frame(Temperature = input$t,
+                                                   pH = input$ph,
+                                                   Result = eqa))
+  })
+  
+  output$graph <- renderPlot({
+    plot(results$data$Temperature, results$data$Result,
+         xlab = "Temperature",
+         ylab = "Result",
+         main = "% of optimum activity of your pepsin at certain pH and temperature during semi-dynamic digestion")
+  })
+  
+  output$table <- renderTable({
+    results$data
+  })
+  
+  output$average_result <- renderText({
+    avg_result <- mean(results$data$Result, na.rm = TRUE)
+    sprintf("Average Result: %f", avg_result)
+  })
+}
+
+shinyApp(ui = ui, server = server)
