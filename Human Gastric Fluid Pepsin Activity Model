@@ -1,0 +1,75 @@
+library(shiny)
+
+ui <- fluidPage(
+  titlePanel("% of optimum activity of HGE pepsin at certain pH and temperature during semi-dynamic digestion"),
+  
+  sidebarLayout(
+    sidebarPanel(
+      numericInput(
+        inputId = "t",
+        label = "Temperature value",
+        value = 1,
+        min = NA,
+        max = NA,
+        step = NA,
+        width = NULL
+      ),
+      numericInput(
+        inputId = "ph",
+        label = "pH value ",
+        value = 1,
+        min = NA,
+        max = NA,
+        step = NA,
+        width = NULL
+      ),
+      actionButton("add_data", "Add Data"),
+    ),
+    
+    mainPanel(
+      plotOutput("graph"),
+      tableOutput("table"),
+      verbatimTextOutput("average_result")
+    )
+  )
+)
+
+server <- function(input, output) {
+  
+  results <- reactiveValues(data = data.frame(Temperature = numeric(),
+                                              pH = numeric(),
+                                              Result = numeric()))
+  
+  observeEvent(input$add_data, {
+    eqa <- -0.0702332 +
+      (0.670378 * input$ph) +
+      (0.0852374 * input$t) +
+      (-0.0199791 * input$ph * input$t) +
+      (-0.0765866 * (input$ph^2)) +
+      (-0.00100496 * (input$t^2)) +
+      (0.000266118 * input$ph * (input$t^2))
+    eqa <- 10^eqa  # Applying inverse base 10 logarithm
+    eqa <- ifelse(eqa < 0, 0, eqa)
+    results$data <- rbind(results$data, data.frame(Temperature = input$t,
+                                                   pH = input$ph,
+                                                   Result = eqa))
+  })
+  
+  output$graph <- renderPlot({
+    plot(results$data$Temperature, results$data$Result,
+         xlab = "Temperature",
+         ylab = "Result",
+         main = "% of optimum activity of your pepsin at certain pH and temperature during semi-dynamic digestion")
+  })
+  
+  output$table <- renderTable({
+    results$data
+  })
+  
+  output$average_result <- renderText({
+    avg_result <- mean(results$data$Result, na.rm = TRUE)
+    sprintf("Average Result: %f", avg_result)
+  })
+}
+
+shinyApp(ui = ui, server = server)
